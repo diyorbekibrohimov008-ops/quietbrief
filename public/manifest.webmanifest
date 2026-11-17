@@ -1,0 +1,16 @@
+{
+  "name": "QuietBrief",
+  "short_name": "QuietBrief",
+  "description": "Bot-free local meeting transcription & on-device executive action briefs.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "quietbrief",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Bot-free local meeting transcription & on-device executive brief workspace for Windows & macOS.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:railway": "npm run build && node scripts/build-railway.mjs",
+    "preview": "vite preview",
+    "test": "node --experimental-strip-types --test tests/brief-extractor.test.ts"
+  },
+  "dependencies": {
+    "preact": "^11.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vite": "^8.3.8",
+    "vite-plugin-singlefile": "^2.3.4"
+  }
+}

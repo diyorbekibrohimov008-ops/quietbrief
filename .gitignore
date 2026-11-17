@@ -1,0 +1,8 @@
+node_modules/
+dist/
+deploy/
+desktop/node_modules/
+desktop/dist/
+.vercel/
+.netlify/
+*.log
