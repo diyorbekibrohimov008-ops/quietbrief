@@ -12,6 +12,8 @@
     "test": "node --experimental-strip-types --test tests/brief-extractor.test.ts"
   },
   "dependencies": {
+    "@fontsource/dm-mono": "^5.3.0",
+    "@fontsource/instrument-sans": "^5.3.0",
     "preact": "^11.2.0"
   },
   "devDependencies": {

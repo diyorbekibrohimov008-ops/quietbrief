@@ -10,14 +10,14 @@
   --text-dim: #66738c;
   --accent: #10b981;
   --accent-soft: rgba(16, 185, 129, 0.14);
-  --indigo: #6366f1;
-  --indigo-soft: rgba(99, 102, 241, 0.16);
+  --indigo: #0d9488;
+  --indigo-soft: rgba(20, 184, 166, 0.16);
   --amber: #f59e0b;
   --amber-soft: rgba(245, 158, 11, 0.15);
   --rose: #f43f5e;
   --rose-soft: rgba(244, 63, 94, 0.16);
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif;
-  --font-mono: ui-monospace, 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+  --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, SFMono-Regular, monospace;
 }
 
 * {
@@ -370,7 +370,7 @@ button {
 }
 
 .meter-fill-indigo {
-  background: linear-gradient(90deg, #6366f1, #818cf8);
+  background: linear-gradient(90deg, #0d9488, #2dd4bf);
 }
 
 .workspace-split {
@@ -430,8 +430,8 @@ button {
 
 .pill-indigo {
   background: var(--indigo-soft);
-  color: #a5b4fc;
-  border-color: rgba(99, 102, 241, 0.35);
+  color: #5eead4;
+  border-color: rgba(20, 184, 166, 0.35);
 }
 
 .pill-amber {
@@ -592,17 +592,42 @@ button {
 
 @media (max-width: 1040px) {
   .app-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .sidebar {
     position: static;
     height: auto;
   }
   .workspace-split {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .recorder-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .app-shell > *,
+  .workspace-split > *,
+  .recorder-grid > * {
+    min-width: 0;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid #2dd4bf;
+  outline-offset: 2px;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

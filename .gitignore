@@ -15,3 +15,6 @@ desktop/dist/
 *.pem
 *.key
 .data/
+
+.vercel
+.env*
