@@ -6,3 +6,12 @@ desktop/dist/
 .vercel/
 .netlify/
 *.log
+
+# Secrets, environment variables, and deploy state
+.env
+.env.*
+*.env
+!.env.example
+*.pem
+*.key
+.data/

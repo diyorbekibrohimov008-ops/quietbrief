@@ -6,6 +6,10 @@
 
 > **Bot-free local meeting transcription and executive action brief workspace for Windows (WASAPI + CUDA) and macOS (ScreenCaptureKit + Apple Silicon).**
 
+> [!WARNING]
+> **Project Status — Work in Progress (Not Fully Ready)**
+> This project is currently under active development and is **not fully ready for production**. Some parts, features, or workflow steps will fail or behave unexpectedly. We are actively working on fixing all remaining issues.
+
 Live Production Deployment: **[https://quietbrief.vercel.app](https://quietbrief.vercel.app)**  
 Secondary Alias: **[https://quietbrief-ibroximov.vercel.app](https://quietbrief-ibroximov.vercel.app)**
 
