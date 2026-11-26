@@ -37,7 +37,7 @@ import { BriefWorkspace } from './components/BriefWorkspace';
 import { ActionsTrackerView } from './components/ActionsTrackerView';
 import { DesktopHardwareView } from './components/DesktopHardwareView';
 
-type ActiveTab = 'workspace' | 'actions' | 'desktop';
+type ActiveTab = 'workspace' | 'actions' | 'settings';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -84,14 +84,22 @@ export function App() {
       setMeetings(loaded);
       if (loaded.length > 0) setSelectedId(loaded[0].id);
     });
-    refreshOllama();
+    if (window.quietbriefDesktop?.ollamaProbe) {
+      refreshOllama();
+    }
 
     const onBeforeInstall = (ev: Event) => {
       ev.preventDefault();
       setInstallEvent(ev as BeforeInstallPromptEvent);
     };
     window.addEventListener('beforeinstallprompt', onBeforeInstall);
-    return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+      if (captureRef.current) {
+        void captureRef.current.stop();
+        captureRef.current = null;
+      }
+    };
   }, []);
 
   const persistMeetingUpdate = async (updated: MeetingRecord, audioBlob?: Blob) => {
@@ -120,7 +128,7 @@ export function App() {
   }) => {
     setIsProcessing(true);
     setBannerError('');
-    setProcessingLabel('Decoding audio locally to 16 kHz mono PCM...');
+    setProcessingLabel('Preparing your audio recording...');
 
     let decodedSamples: Float32Array | null = null;
     let durationSec = opts.durationHintSec;
@@ -131,12 +139,12 @@ export function App() {
       if (decoded.durationSec > 0) durationSec = Math.round(decoded.durationSec);
     } catch (err) {
       setBannerError(
-        `Audio decode notice: ${err instanceof Error ? err.message : String(err)}`
+        `Could not decode audio: ${err instanceof Error ? err.message : String(err)}`
       );
     }
 
     let segments: TranscriptSegment[] = [];
-    let whisperLabel = `${opts.whisperModel} (Local)`;
+    let whisperLabel = `${opts.whisperModel.replace('Xenova/', '')} (Local)`;
 
     if (decodedSamples) {
       try {
@@ -158,15 +166,14 @@ export function App() {
           onProgress: (ev) => setProcessingLabel(ev.message),
         });
         segments = res.segments;
-        whisperLabel = `${opts.whisperModel.replace('Xenova/', '')} · ${res.device.toUpperCase()}`;
+        whisperLabel = `${opts.whisperModel.replace('Xenova/', '')} (${res.device.toUpperCase()})`;
       } catch (err) {
         setBannerError(
-          `Whisper worker notice: ${err instanceof Error ? err.message : String(err)}`
+          `Transcription notice: ${err instanceof Error ? err.message : String(err)}`
         );
       }
     }
 
-    // Fall back to live draft captions if Whisper returned nothing or offline CDN failed
     if (segments.length === 0 && opts.fallbackCaptions && opts.fallbackCaptions.length > 0) {
       const finalDrafts = opts.fallbackCaptions.filter((c) => c.isFinal);
       const sourceDrafts = finalDrafts.length > 0 ? finalDrafts : opts.fallbackCaptions;
@@ -174,14 +181,14 @@ export function App() {
         id: `draft-${idx + 1}`,
         startSec: c.timestampSec,
         endSec: c.timestampSec + 4,
-        speaker: 'You (Draft)',
+        speaker: 'You',
         channel: 'local',
         text: c.text,
       }));
-      whisperLabel = 'Browser Speech Draft';
+      whisperLabel = 'Live Draft Transcript';
     }
 
-    setProcessingLabel('Synthesizing local Executive Brief...');
+    setProcessingLabel('Writing summary and pulling out action items...');
     let brief = extractExecutiveBrief(segments, opts.title);
     if (ollamaStatus.available && ollamaStatus.models.length > 0 && segments.length > 0) {
       try {
@@ -193,7 +200,7 @@ export function App() {
           onStatus: setProcessingLabel,
         });
       } catch {
-        // Already have instant-local brief ready
+        // Fallback already built above
       }
     }
 
@@ -302,7 +309,7 @@ export function App() {
       audioSourceMode: 'system+mic',
       audioMimeType: sampleAudio.type,
       hasAudioBlob: true,
-      whisperModel: 'Sample Preset (Zero-Bot Demo)',
+      whisperModel: 'Sample meeting',
       segments: preset.segments,
       brief,
       status: 'ready',
@@ -378,7 +385,7 @@ export function App() {
     if (!target) return;
     setBannerError('');
     setIsProcessing(true);
-    setProcessingLabel('Running local Executive Brief engine...');
+    setProcessingLabel('Updating meeting summary...');
     try {
       const brief = await generateExecutiveBrief({
         mode,
@@ -390,7 +397,7 @@ export function App() {
       });
       await persistMeetingUpdate({ ...target, brief });
     } catch (err) {
-      setBannerError(err instanceof Error ? err.message : 'Failed to regenerate brief.');
+      setBannerError(err instanceof Error ? err.message : 'Failed to update summary.');
     } finally {
       setIsProcessing(false);
       setProcessingLabel('');
@@ -402,12 +409,12 @@ export function App() {
     if (!target) return;
     const blob = await getAudioBlob(meetingId);
     if (!blob) {
-      setBannerError('No stored audio found for this meeting.');
+      setBannerError('No saved audio found for this meeting.');
       return;
     }
     setBannerError('');
     setIsProcessing(true);
-    setProcessingLabel('Decoding stored local audio...');
+    setProcessingLabel('Reading saved audio...');
     try {
       const decoded = await decodeAudioTo16kMono(blob);
       const res = await transcribeAudioLocally({
@@ -419,12 +426,12 @@ export function App() {
       const brief = extractExecutiveBrief(res.segments, target.title);
       await persistMeetingUpdate({
         ...target,
-        whisperModel: `${modelId.replace('Xenova/', '')} · ${res.device.toUpperCase()}`,
+        whisperModel: `${modelId.replace('Xenova/', '')} (${res.device.toUpperCase()})`,
         segments: res.segments,
         brief,
       });
     } catch (err) {
-      setBannerError(err instanceof Error ? err.message : 'Local Whisper transcription failed.');
+      setBannerError(err instanceof Error ? err.message : 'Local transcription failed.');
     } finally {
       setIsProcessing(false);
       setProcessingLabel('');
@@ -466,13 +473,13 @@ export function App() {
             <div class="brand-mark">Q</div>
             <div>
               <div class="brand-title">QuietBrief</div>
-              <div class="brand-sub">Bot-Free · Local AI Briefs</div>
+              <div class="brand-sub">Private meeting notes</div>
             </div>
           </div>
-          <span class="pill pill-green">v1.0</span>
+          <span class="pill pill-green">Free</span>
         </div>
 
-        <div class="nav-pills">
+        <div class="nav-pills" role="tablist">
           <button
             class={`nav-pill ${activeTab === 'workspace' ? 'active' : ''}`}
             onClick={() => setActiveTab('workspace')}
@@ -486,17 +493,17 @@ export function App() {
             Tasks ({openActionCount})
           </button>
           <button
-            class={`nav-pill ${activeTab === 'desktop' ? 'active' : ''}`}
-            onClick={() => setActiveTab('desktop')}
+            class={`nav-pill ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('settings')}
           >
-            Desktop
+            Settings
           </button>
         </div>
 
         <input
           class="input"
           type="search"
-          placeholder="Search meetings, tasks, quotes..."
+          placeholder="Search notes or tasks..."
           value={searchQuery}
           onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
         />
@@ -504,7 +511,7 @@ export function App() {
         <div class="meeting-list">
           {filteredMeetings.length === 0 ? (
             <div style="font-size:12px;color:var(--text-dim);padding:10px;">
-              No meetings yet. Start a bot-free recording or drop an audio file.
+              No meetings yet. Start a recording or open a sample on the right.
             </div>
           ) : (
             filteredMeetings.map((m) => {
@@ -521,9 +528,9 @@ export function App() {
                   <div class="meeting-item-title">{m.title}</div>
                   <div class="meeting-item-meta">
                     <span>
-                      {m.platform} · {formatTimestamp(m.durationSec)}
+                      {m.platform} ({formatTimestamp(m.durationSec)})
                     </span>
-                    <span>{open > 0 ? `${open} tasks` : 'All clear'}</span>
+                    <span>{open > 0 ? `${open} open` : 'Done'}</span>
                   </div>
                 </button>
               );
@@ -534,134 +541,102 @@ export function App() {
         <div class="privacy-footer">
           <div class="privacy-badge">
             <span class="dot" />
-            <span>0 bytes uploaded · Local Vault</span>
+            <span>Stays on your device</span>
           </div>
-          <div>
-            {'gpu' in navigator ? 'WebGPU acceleration detected' : 'WASM local runtime ready'} ·{' '}
-            {ollamaStatus.available
-              ? `Ollama (${ollamaStatus.models.length} models)`
-              : 'Instant Brief active'}
-          </div>
+          <div>No bots join your calls. Audio is never uploaded.</div>
         </div>
       </aside>
 
       <main class="main-area">
-        <header class="topbar">
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <span class="pill pill-green">No Meeting Bots</span>
-            <span class="pill">Zoom · Meet · Teams</span>
-            <span class="pill pill-indigo">
-              {ollamaStatus.available ? 'Local GPU Ollama Ready' : 'On-Device Whisper + Brief'}
-            </span>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            {installEvent && (
-              <button
-                class="btn btn-sm btn-primary"
-                onClick={() => {
-                  void installEvent.prompt();
-                }}
-              >
-                Install Desktop App
-              </button>
-            )}
-            <button class="btn btn-sm" onClick={() => setActiveTab('desktop')}>
-              Windows &amp; Mac Setup
-            </button>
-          </div>
-        </header>
-
-        {bannerError && (
-          <div style="margin:14px 24px 0;">
+        <div class="content-wrap">
+          {bannerError && (
             <div class="banner banner-warn">
               <span>{bannerError}</span>
               <button class="btn btn-sm" onClick={() => setBannerError('')}>
                 Dismiss
               </button>
             </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === 'workspace' && (
-          <>
-            <RecorderPanel
-              isRecording={isRecording}
-              isPaused={isPaused}
-              isProcessing={isProcessing}
-              processingLabel={processingLabel}
-              meter={meter}
-              liveCaptions={liveCaptions}
-              activeMode={activeMode}
-              onStartRecording={handleStartRecording}
-              onTogglePause={() => {
-                if (!captureRef.current) return;
-                if (isPaused) {
-                  captureRef.current.resume();
-                  setIsPaused(false);
-                } else {
-                  captureRef.current.pause();
-                  setIsPaused(true);
-                }
-              }}
-              onStopRecording={handleStopRecording}
-              onToggleMicMute={(muted) => captureRef.current?.setMicMuted(muted)}
-              onToggleSystemMute={(muted) => captureRef.current?.setSystemMuted(muted)}
-              onImportFile={handleImportFile}
-              onLoadSample={handleLoadSample}
-            />
-
-            {selectedMeeting ? (
-              <BriefWorkspace
-                meeting={selectedMeeting}
-                ollamaStatus={ollamaStatus}
-                isBusy={isProcessing || isRecording}
-                onToggleTask={(taskId) => void toggleTask(selectedMeeting.id, taskId)}
-                onAddTask={(task) => void addTask(selectedMeeting.id, task)}
-                onRenameSpeaker={(oldName, newName) =>
-                  void renameSpeaker(selectedMeeting.id, oldName, newName)
-                }
-                onRegenerateBrief={(mode, model) =>
-                  void regenerateBrief(selectedMeeting.id, mode, model)
-                }
-                onRetranscribeAudio={(modelId) =>
-                  void retranscribeAudio(selectedMeeting.id, modelId)
-                }
-                onDeleteMeeting={(id) => void handleDeleteMeeting(id)}
+          {activeTab === 'workspace' && (
+            <>
+              <RecorderPanel
+                isRecording={isRecording}
+                isPaused={isPaused}
+                isProcessing={isProcessing}
+                processingLabel={processingLabel}
+                meter={meter}
+                liveCaptions={liveCaptions}
+                activeMode={activeMode}
+                onStartRecording={handleStartRecording}
+                onTogglePause={() => {
+                  if (!captureRef.current) return;
+                  if (isPaused) {
+                    captureRef.current.resume();
+                    setIsPaused(false);
+                  } else {
+                    captureRef.current.pause();
+                    setIsPaused(true);
+                  }
+                }}
+                onStopRecording={handleStopRecording}
+                onToggleMicMute={(muted) => captureRef.current?.setMicMuted(muted)}
+                onToggleSystemMute={(muted) => captureRef.current?.setSystemMuted(muted)}
+                onImportFile={handleImportFile}
+                onLoadSample={handleLoadSample}
               />
-            ) : (
-              <div class="page-pad">
+
+              {selectedMeeting ? (
+                <BriefWorkspace
+                  meeting={selectedMeeting}
+                  ollamaStatus={ollamaStatus}
+                  isBusy={isProcessing || isRecording}
+                  onToggleTask={(taskId) => void toggleTask(selectedMeeting.id, taskId)}
+                  onAddTask={(task) => void addTask(selectedMeeting.id, task)}
+                  onRenameSpeaker={(oldName, newName) =>
+                    void renameSpeaker(selectedMeeting.id, oldName, newName)
+                  }
+                  onRegenerateBrief={(mode, model) =>
+                    void regenerateBrief(selectedMeeting.id, mode, model)
+                  }
+                  onRetranscribeAudio={(modelId) =>
+                    void retranscribeAudio(selectedMeeting.id, modelId)
+                  }
+                  onDeleteMeeting={(id) => void handleDeleteMeeting(id)}
+                />
+              ) : (
                 <div class="card">
-                  <h2 style="margin:0;">Ready for your first bot-free meeting</h2>
+                  <h2 style="margin:0;font-size:17px;">Ready for your first meeting</h2>
                   <p style="margin:0;color:var(--text-muted);">
-                    Click <strong>Start Bot-Free Recording</strong> above, drop a recording file, or load a sample meeting to inspect the structured Executive Brief.
+                    Click <strong>Start recording</strong> above, upload an audio file, or try a sample meeting to see how QuietBrief turns a call into a clear summary and task list.
                   </p>
                 </div>
-              </div>
-            )}
-          </>
-        )}
+              )}
+            </>
+          )}
 
-        {activeTab === 'actions' && (
-          <ActionsTrackerView
-            meetings={meetings}
-            onToggleTask={(mId, tId) => void toggleTask(mId, tId)}
-            onOpenMeeting={(mId) => {
-              setSelectedId(mId);
-              setActiveTab('workspace');
-            }}
-          />
-        )}
+          {activeTab === 'actions' && (
+            <ActionsTrackerView
+              meetings={meetings}
+              onToggleTask={(mId, tId) => void toggleTask(mId, tId)}
+              onOpenMeeting={(mId) => {
+                setSelectedId(mId);
+                setActiveTab('workspace');
+              }}
+            />
+          )}
 
-        {activeTab === 'desktop' && (
-          <DesktopHardwareView
-            ollamaStatus={ollamaStatus}
-            onRefreshOllama={refreshOllama}
-            canInstallPwa={Boolean(installEvent)}
-            onInstallPwa={() => {
-              if (installEvent) void installEvent.prompt();
-            }}
-          />
-        )}
+          {activeTab === 'settings' && (
+            <DesktopHardwareView
+              ollamaStatus={ollamaStatus}
+              onRefreshOllama={refreshOllama}
+              canInstallPwa={Boolean(installEvent)}
+              onInstallPwa={() => {
+                if (installEvent) void installEvent.prompt();
+              }}
+            />
+          )}
+        </div>
       </main>
     </div>
   );

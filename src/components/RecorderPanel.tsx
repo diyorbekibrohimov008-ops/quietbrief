@@ -62,60 +62,65 @@ export function RecorderPanel(props: RecorderPanelProps) {
   };
 
   return (
-    <section class="recorder-panel" aria-label="Bot-free meeting recorder">
-      <div class="recorder-grid">
+    <section
+      class="recorder-panel"
+      aria-label="Meeting recorder"
+      style={dragActive ? 'border-color: var(--accent); background: var(--accent-soft);' : ''}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragActive(true);
+      }}
+      onDragLeave={() => setDragActive(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragActive(false);
+        handleFile(e.dataTransfer?.files?.[0]);
+      }}
+    >
+      <div class="card-header">
         <div>
-          <label class="field-label" for="qb-meeting-title">
-            Meeting Title
-          </label>
-          <input
-            id="qb-meeting-title"
-            class="input"
-            type="text"
-            placeholder="e.g. Weekly Architecture Sync"
-            value={title}
-            disabled={isRecording || isProcessing}
-            onInput={(e) => setTitle((e.target as HTMLInputElement).value)}
-          />
+          <h2 class="card-title">Record a meeting or upload audio</h2>
+          <p style="margin:3px 0 0;font-size:13px;color:var(--text-muted);">
+            Listens privately on your computer — no bot joins your call, and nothing is sent to the cloud.
+          </p>
         </div>
+        {!isRecording && !isProcessing && (
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            {SAMPLE_MEETING_PRESETS.slice(0, 1).map((preset) => (
+              <button
+                key={preset.id}
+                class="btn btn-sm"
+                onClick={() => onLoadSample(preset)}
+              >
+                Try sample meeting
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
-        <div>
-          <label class="field-label" for="qb-platform">
-            Call Source (No Bot)
-          </label>
-          <select
-            id="qb-platform"
-            class="select"
-            value={platform}
-            disabled={isRecording || isProcessing}
-            onChange={(e) => setPlatform((e.target as HTMLSelectElement).value as MeetingPlatform)}
-          >
-            <option value="Zoom">Zoom (Silent Capture)</option>
-            <option value="Google Meet">Google Meet (Silent Capture)</option>
-            <option value="Microsoft Teams">Microsoft Teams (Silent Capture)</option>
-            <option value="System Audio">Any App / System Audio</option>
-          </select>
-        </div>
+      <div class="recorder-row">
+        <input
+          id="qb-meeting-title"
+          class="input"
+          type="text"
+          aria-label="Meeting name"
+          placeholder="Meeting name (e.g. Weekly Team Check-in)"
+          value={title}
+          disabled={isRecording || isProcessing}
+          onInput={(e) => setTitle((e.target as HTMLInputElement).value)}
+        />
 
-        <div>
-          <label class="field-label" for="qb-audio-mode">
-            Audio Channels
-          </label>
-          <select
-            id="qb-audio-mode"
-            class="select"
-            value={mode}
-            disabled={isRecording || isProcessing}
-            onChange={(e) => setMode((e.target as HTMLSelectElement).value as AudioSourceMode)}
-          >
-            <option value="system+mic">System + Mic (Recommended)</option>
-            <option value="system">System / Call Audio Only</option>
-            <option value="mic">Microphone Only</option>
-          </select>
-        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="audio/*,video/webm,video/mp4"
+          style="display:none;"
+          onChange={(e) => handleFile((e.target as HTMLInputElement).files?.[0])}
+        />
 
-        <div>
-          {!isRecording ? (
+        {!isRecording ? (
+          <>
             <button
               class="btn btn-primary"
               disabled={isProcessing}
@@ -123,7 +128,12 @@ export function RecorderPanel(props: RecorderPanelProps) {
                 setMicMuted(false);
                 setSysMuted(false);
                 onStartRecording({
-                  title: title.trim() || `${platform} Meeting ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+                  title:
+                    title.trim() ||
+                    `${platform} Meeting ${new Date().toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}`,
                   platform,
                   mode,
                   whisperModel,
@@ -131,53 +141,26 @@ export function RecorderPanel(props: RecorderPanelProps) {
                 });
               }}
             >
-              <span>●</span> Start Bot-Free Recording
+              Start recording
             </button>
-          ) : (
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <button class="btn" onClick={onTogglePause}>
-                {isPaused ? 'Resume' : 'Pause'}
-              </button>
-              <button class="btn btn-danger" onClick={onStopRecording}>
-                ■ Stop &amp; Distill ({formatTimestamp(meter.elapsedSec)})
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text-muted);">
-        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-          <label style="display:inline-flex;align-items:center;gap:6px;">
-            <span>Whisper Model:</span>
-            <select
-              class="select"
-              style="width:auto;padding:4px 8px;font-size:12px;"
-              value={whisperModel}
-              disabled={isRecording || isProcessing}
-              onChange={(e) => setWhisperModel((e.target as HTMLSelectElement).value as WhisperModelId)}
+            <button
+              class="btn"
+              disabled={isProcessing}
+              onClick={() => fileInputRef.current?.click()}
             >
-              <option value="Xenova/whisper-tiny.en">Whisper Tiny EN (~40MB, fastest)</option>
-              <option value="Xenova/whisper-base.en">Whisper Base EN (~75MB, balanced)</option>
-              <option value="Xenova/whisper-small.en">Whisper Small EN (~240MB, high accuracy)</option>
-            </select>
-          </label>
-
-          <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
-            <input
-              type="checkbox"
-              checked={liveDraft}
-              disabled={isRecording}
-              onChange={(e) => setLiveDraft((e.target as HTMLInputElement).checked)}
-            />
-            Live draft captions during recording
-          </label>
-        </div>
-
-        <span>
-          Zero bots join your call — pick your Zoom/Meet/Teams tab or screen and toggle{' '}
-          <strong>Share audio</strong>.
-        </span>
+              Upload audio
+            </button>
+          </>
+        ) : (
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn" onClick={onTogglePause}>
+              {isPaused ? 'Resume' : 'Pause'}
+            </button>
+            <button class="btn btn-danger" onClick={onStopRecording}>
+              Stop &amp; summarize ({formatTimestamp(meter.elapsedSec)})
+            </button>
+          </div>
+        )}
       </div>
 
       {isRecording && (
@@ -187,7 +170,7 @@ export function RecorderPanel(props: RecorderPanelProps) {
               <div class="meter-head">
                 <span style="display:inline-flex;align-items:center;gap:6px;">
                   <span class="dot dot-pulse" />
-                  <strong>Remote Call Audio</strong>
+                  <strong>Call audio</strong>
                 </span>
                 <button
                   class="btn btn-sm"
@@ -197,12 +180,12 @@ export function RecorderPanel(props: RecorderPanelProps) {
                     onToggleSystemMute(next);
                   }}
                 >
-                  {sysMuted ? 'Unmute Call' : 'Mute Call'}
+                  {sysMuted ? 'Unmute' : 'Mute'}
                 </button>
               </div>
               <div class="meter-track">
                 <div
-                  class="meter-fill meter-fill-indigo"
+                  class="meter-fill"
                   style={{ width: `${sysMuted ? 0 : Math.round(meter.systemLevel * 100)}%` }}
                 />
               </div>
@@ -214,7 +197,7 @@ export function RecorderPanel(props: RecorderPanelProps) {
               <div class="meter-head">
                 <span style="display:inline-flex;align-items:center;gap:6px;">
                   <span class="dot" />
-                  <strong>Your Microphone</strong>
+                  <strong>Your microphone</strong>
                 </span>
                 <button
                   class="btn btn-sm"
@@ -224,7 +207,7 @@ export function RecorderPanel(props: RecorderPanelProps) {
                     onToggleMicMute(next);
                   }}
                 >
-                  {micMuted ? 'Unmute Mic' : 'Mute Mic'}
+                  {micMuted ? 'Unmute' : 'Mute'}
                 </button>
               </div>
               <div class="meter-track">
@@ -241,67 +224,105 @@ export function RecorderPanel(props: RecorderPanelProps) {
       {isRecording && liveCaptions.length > 0 && (
         <div class="banner" style="font-size:12px;">
           <div>
-            <strong>Live Draft:</strong>{' '}
+            <strong>Live notes:</strong>{' '}
             {liveCaptions
               .slice(-3)
               .map((c) => c.text)
               .join(' ')}
           </div>
-          <span class="pill pill-indigo">Full Whisper runs on Stop</span>
+          <span class="pill">Full transcript builds when you stop</span>
         </div>
       )}
 
       {isProcessing && (
         <div class="banner banner-ok">
-          <span>{processingLabel || 'Running local on-device transcription & brief synthesis...'}</span>
-          <span class="pill pill-green">On-Device Processing</span>
+          <span>{processingLabel || 'Creating your private meeting notes...'}</span>
+          <span class="pill pill-green">On-device</span>
         </div>
       )}
 
       {!isRecording && !isProcessing && (
-        <div
-          class="dropzone"
-          style={dragActive ? 'border-color: var(--accent); background: var(--accent-soft);' : ''}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragActive(true);
-          }}
-          onDragLeave={() => setDragActive(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragActive(false);
-            handleFile(e.dataTransfer?.files?.[0]);
-          }}
-        >
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="audio/*,video/webm,video/mp4"
-              style="display:none;"
-              onChange={(e) => handleFile((e.target as HTMLInputElement).files?.[0])}
-            />
-            <button class="btn btn-sm" onClick={() => fileInputRef.current?.click()}>
-              Import Recording (.wav / .mp3 / .m4a / .webm)
-            </button>
-            <span style="font-size:12px;color:var(--text-muted);">
-              or drop an audio file here to transcribe 100% locally via Whisper
-            </span>
+        <details class="options-disclosure">
+          <summary>Recording options (app, microphone, speech accuracy)</summary>
+          <div class="options-grid">
+            <div>
+              <label class="field-label" for="qb-platform">
+                Meeting app
+              </label>
+              <select
+                id="qb-platform"
+                class="select"
+                value={platform}
+                onChange={(e) =>
+                  setPlatform((e.target as HTMLSelectElement).value as MeetingPlatform)
+                }
+              >
+                <option value="Zoom">Zoom</option>
+                <option value="Google Meet">Google Meet</option>
+                <option value="Microsoft Teams">Microsoft Teams</option>
+                <option value="System Audio">Any other app</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="field-label" for="qb-audio-mode">
+                What to record
+              </label>
+              <select
+                id="qb-audio-mode"
+                class="select"
+                value={mode}
+                onChange={(e) =>
+                  setMode((e.target as HTMLSelectElement).value as AudioSourceMode)
+                }
+              >
+                <option value="system+mic">Call audio + your mic</option>
+                <option value="system">Call audio only</option>
+                <option value="mic">Microphone only</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="field-label" for="qb-whisper-model">
+                Transcription speed / accuracy
+              </label>
+              <select
+                id="qb-whisper-model"
+                class="select"
+                value={whisperModel}
+                onChange={(e) =>
+                  setWhisperModel((e.target as HTMLSelectElement).value as WhisperModelId)
+                }
+              >
+                <option value="Xenova/whisper-tiny.en">Fast (~40 MB)</option>
+                <option value="Xenova/whisper-base.en">Balanced (~75 MB)</option>
+                <option value="Xenova/whisper-small.en">Most accurate (~240 MB)</option>
+              </select>
+            </div>
           </div>
 
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <span style="font-size:11px;color:var(--text-dim);">Try instant sample:</span>
-            {SAMPLE_MEETING_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                class="btn btn-sm"
-                onClick={() => onLoadSample(preset)}
-              >
-                {preset.platform} Demo
-              </button>
-            ))}
+          <div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+              <input
+                type="checkbox"
+                checked={liveDraft}
+                onChange={(e) => setLiveDraft((e.target as HTMLInputElement).checked)}
+              />
+              Show live draft captions while recording
+            </label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              {SAMPLE_MEETING_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  class="btn btn-sm"
+                  onClick={() => onLoadSample(preset)}
+                >
+                  Load {preset.platform} sample
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        </details>
       )}
     </section>
   );

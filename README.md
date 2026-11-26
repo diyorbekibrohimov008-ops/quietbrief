@@ -4,11 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20(CUDA)%20%7C%20macOS%20(Apple%20Silicon)-indigo.svg)](#)
 
-> **Bot-free local meeting transcription and executive action brief workspace for Windows (WASAPI + CUDA) and macOS (ScreenCaptureKit + Apple Silicon).**
-
-> [!WARNING]
-> **Project Status — Work in Progress (Not Fully Ready)**
-> This project is currently under active development and is **not fully ready for production**. Some parts, features, or workflow steps will fail or behave unexpectedly. We are actively working on fixing all remaining issues.
+> **100% free, bot-free local meeting transcription and executive action brief workspace for Windows (WASAPI + CUDA) and macOS (ScreenCaptureKit + Apple Silicon).**
 
 Live Production Deployment: **[https://quietbrief.vercel.app](https://quietbrief.vercel.app)**  
 Secondary Alias: **[https://quietbrief-ibroximov.vercel.app](https://quietbrief-ibroximov.vercel.app)**

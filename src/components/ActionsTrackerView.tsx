@@ -32,65 +32,65 @@ export function ActionsTrackerView(props: ActionsTrackerViewProps) {
   });
 
   return (
-    <div class="page-pad">
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <h1 style="margin:0;font-size:19px;">Cross-Meeting Action Items &amp; Deadlines</h1>
-            <p style="margin:4px 0 0;font-size:13px;color:var(--text-muted);">
-              Aggregated locally from every executive brief stored on this device.
-            </p>
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            {(['open', 'completed', 'all'] as const).map((tab) => (
-              <button
-                key={tab}
-                class={`btn btn-sm ${filter === tab ? 'btn-primary' : ''}`}
-                onClick={() => setFilter(tab)}
-              >
-                {tab[0].toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h1 style="margin:0;font-size:20px;">All follow-up tasks</h1>
+          <p style="margin:4px 0 0;font-size:13px;color:var(--text-muted);">
+            Every action item from your saved meetings in one place.
+          </p>
         </div>
-
-        <input
-          class="input"
-          placeholder="Filter by owner (e.g. Marcus, Priya, You)..."
-          value={ownerFilter}
-          onInput={(e) => setOwnerFilter((e.target as HTMLInputElement).value)}
-        />
-
-        {visible.length === 0 ? (
-          <div style="color:var(--text-muted);padding:12px 0;">No action items match this filter.</div>
-        ) : (
-          <ul class="list-clean">
-            {visible.map(({ meetingId, meetingTitle, item }) => (
-              <li key={`${meetingId}:${item.id}`} class={`task-row ${item.completed ? 'done' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={item.completed}
-                  style="margin-top:4px;accent-color:var(--accent);width:16px;height:16px;"
-                  onChange={() => onToggleTask(meetingId, item.id)}
-                />
-                <div>
-                  <div class="task-text" style="font-weight:500;">
-                    {item.task}
-                  </div>
-                  <div class="task-meta">
-                    <span class="pill pill-indigo">{item.owner}</span>
-                    <span class="pill pill-amber">Due: {item.deadline}</span>
-                    <span class="pill">{meetingTitle}</span>
-                  </div>
-                </div>
-                <button class="btn btn-sm" onClick={() => onOpenMeeting(meetingId)}>
-                  Open ({formatTimestamp(item.sourceTimestampSec)})
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          {(['open', 'completed', 'all'] as const).map((tab) => (
+            <button
+              key={tab}
+              class={`btn btn-sm ${filter === tab ? 'btn-primary' : ''}`}
+              onClick={() => setFilter(tab)}
+            >
+              {tab[0].toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
       </div>
+
+      <input
+        class="input"
+        placeholder="Filter by person (e.g. Marcus, Priya, You)..."
+        value={ownerFilter}
+        onInput={(e) => setOwnerFilter((e.target as HTMLInputElement).value)}
+      />
+
+      {visible.length === 0 ? (
+        <div style="color:var(--text-muted);padding:12px 0;">
+          No tasks match this filter.
+        </div>
+      ) : (
+        <ul class="list-clean">
+          {visible.map(({ meetingId, meetingTitle, item }) => (
+            <li key={`${meetingId}:${item.id}`} class={`task-row ${item.completed ? 'done' : ''}`}>
+              <input
+                type="checkbox"
+                checked={item.completed}
+                style="margin-top:4px;accent-color:var(--accent);width:16px;height:16px;"
+                onChange={() => onToggleTask(meetingId, item.id)}
+              />
+              <div>
+                <div class="task-text" style="font-weight:500;">
+                  {item.task}
+                </div>
+                <div class="task-meta">
+                  <span class="pill pill-green">{item.owner}</span>
+                  <span class="pill pill-amber">Due {item.deadline}</span>
+                  <span class="pill">{meetingTitle}</span>
+                </div>
+              </div>
+              <button class="btn btn-sm" onClick={() => onOpenMeeting(meetingId)}>
+                Open ({formatTimestamp(item.sourceTimestampSec)})
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

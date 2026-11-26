@@ -10,40 +10,44 @@ interface DesktopHardwareViewProps {
 
 export function DesktopHardwareView(props: DesktopHardwareViewProps) {
   const { ollamaStatus, onRefreshOllama, canInstallPwa, onInstallPwa } = props;
-  const [gpuInfo, setGpuInfo] = useState<string>('Probing WebGPU adapter...');
+  const [gpuInfo, setGpuInfo] = useState<string>('Checking device graphics...');
   const [osLabel, setOsLabel] = useState<string>('Detecting...');
 
   useEffect(() => {
     const ua = navigator.userAgent;
     if (/Mac/i.test(ua)) {
-      setOsLabel('macOS (Apple Silicon / Metal ready)');
+      setOsLabel('macOS');
     } else if (/Win/i.test(ua)) {
-      setOsLabel('Windows (WASAPI Loopback + CUDA ready)');
+      setOsLabel('Windows');
     } else {
-      setOsLabel('Linux / Cross-Platform');
+      setOsLabel('Linux / Web');
     }
 
     const probeGpu = async () => {
       if (!('gpu' in navigator)) {
-        setGpuInfo('WebGPU disabled — Whisper runs on local multi-platform WASM');
+        setGpuInfo('Standard CPU mode (works everywhere)');
         return;
       }
       try {
         const navGpu = navigator as unknown as {
-          gpu: { requestAdapter: () => Promise<{ info?: { description?: string; vendor?: string; architecture?: string } } | null> };
+          gpu: {
+            requestAdapter: () => Promise<{
+              info?: { description?: string; vendor?: string; architecture?: string };
+            } | null>;
+          };
         };
         const adapter = await navGpu.gpu.requestAdapter();
         if (!adapter) {
-          setGpuInfo('No WebGPU hardware adapter found — WASM active');
+          setGpuInfo('Standard CPU mode (works everywhere)');
           return;
         }
         const desc =
           adapter.info?.description ||
-          [adapter.info?.vendor, adapter.info?.architecture].filter(Boolean).join(' · ') ||
-          'WebGPU Hardware Acceleration Active';
+          [adapter.info?.vendor, adapter.info?.architecture].filter(Boolean).join(' ') ||
+          'Fast WebGPU hardware ready';
         setGpuInfo(desc);
       } catch {
-        setGpuInfo('WebGPU adapter probe restricted — WASM active');
+        setGpuInfo('Standard CPU mode (works everywhere)');
       }
     };
     void probeGpu();
@@ -52,91 +56,82 @@ export function DesktopHardwareView(props: DesktopHardwareViewProps) {
   const isElectron = Boolean(window.quietbriefDesktop);
 
   return (
-    <div class="page-pad">
+    <div class="stack">
       <div class="card">
         <div class="card-header">
           <div>
-            <h1 style="margin:0;font-size:19px;">Desktop Package &amp; On-Device Hardware</h1>
+            <h1 style="margin:0;font-size:20px;">Settings &amp; device setup</h1>
             <p style="margin:4px 0 0;font-size:13px;color:var(--text-muted);">
-              Run QuietBrief natively on Windows (CUDA + WASAPI) or macOS (Apple Silicon Metal + ScreenCaptureKit), or install directly as an offline Desktop PWA.
+              QuietBrief runs locally in your browser for free. Optional local AI (Ollama) and desktop app build steps are below.
             </p>
           </div>
           {canInstallPwa && (
             <button class="btn btn-primary" onClick={onInstallPwa}>
-              Install Desktop App (PWA)
+              Install app on this device
             </button>
           )}
         </div>
 
         <div class="hardware-grid">
-          <div class="card" style="background:var(--bg);">
-            <div class="field-label">Host Environment</div>
+          <div class="card" style="background:var(--bg);padding:14px;">
+            <div class="field-label">Your device</div>
             <div style="font-weight:700;">{osLabel}</div>
             <div style="font-size:12px;color:var(--text-muted);">
-              Runtime: {isElectron ? 'Native Electron Desktop Wrapper' : 'Browser Sandbox (Zero Cloud Upload)'} ·{' '}
-              {navigator.hardwareConcurrency || 4} CPU threads
+              {isElectron ? 'Desktop app' : 'Private browser storage'} ({navigator.hardwareConcurrency || 4} CPU threads)
             </div>
           </div>
 
-          <div class="card" style="background:var(--bg);">
-            <div class="field-label">On-Device Whisper Accelerator</div>
+          <div class="card" style="background:var(--bg);padding:14px;">
+            <div class="field-label">Transcription engine</div>
             <div style="font-weight:700;">{gpuInfo}</div>
             <div style="font-size:12px;color:var(--text-muted);">
-              Audio stays in RAM &amp; IndexedDB — Whisper weights cached persistently in browser storage.
+              Audio and transcripts stay inside your browser storage.
             </div>
           </div>
 
-          <div class="card" style="background:var(--bg);">
-            <div class="card-header">
-              <span class="field-label" style="margin:0;">Local Quantized LLM (Ollama)</span>
+          <div class="card" style="background:var(--bg);padding:14px;">
+            <div class="card-header" style="align-items:center;">
+              <span class="field-label" style="margin:0;">Optional local Ollama AI</span>
               <button class="btn btn-sm" onClick={onRefreshOllama}>
-                Refresh
+                Check connection
               </button>
             </div>
             <div style="font-weight:700;">
               {ollamaStatus.available
-                ? `Connected (${ollamaStatus.models.length} local model${ollamaStatus.models.length === 1 ? '' : 's'})`
-                : 'Not detected on localhost:11434'}
+                ? `Connected (${ollamaStatus.models.length} model${ollamaStatus.models.length === 1 ? '' : 's'})`
+                : 'Not connected'}
             </div>
             <div style="font-size:12px;color:var(--text-muted);">
               {ollamaStatus.available
                 ? ollamaStatus.models.join(', ') || 'Run: ollama pull qwen2.5:3b'
-                : 'Start Ollama locally with OLLAMA_ORIGINS=* or use the built-in WebGPU / Instant Local engines.'}
+                : 'Completely optional — built-in offline summaries already work with zero setup.'}
             </div>
           </div>
         </div>
       </div>
 
-      <div class="hardware-grid">
-        <div class="card">
-          <h2 class="card-title">Windows (WASAPI + NVIDIA CUDA)</h2>
-          <p style="margin:0;font-size:13px;color:var(--text-muted);">
-            Silent system audio capture via Windows WASAPI loopback — no VB-Cable or third-party virtual driver needed.
-          </p>
-          <pre class="code-block">{`# Enable local Ollama GPU access from web/PWA:
-set OLLAMA_ORIGINS=*
+      <details class="card">
+        <summary style="cursor:pointer;font-weight:700;font-size:14px;">
+          Advanced: Windows &amp; macOS desktop app + Ollama commands
+        </summary>
+        <div class="hardware-grid" style="margin-top:14px;">
+          <div>
+            <h2 class="card-title" style="margin-bottom:6px;">Windows</h2>
+            <pre class="code-block">{`set OLLAMA_ORIGINS=*
 ollama pull qwen2.5:3b
 ollama serve
 
-# Or build standalone Windows Electron (.exe):
-cd desktop
-npm install && npm run dist:win`}</pre>
-        </div>
-
-        <div class="card">
-          <h2 class="card-title">macOS (Apple Silicon Metal + ScreenCaptureKit)</h2>
-          <p style="margin:0;font-size:13px;color:var(--text-muted);">
-            Silent call audio loopback on macOS 13+/14.2+ via Electron ScreenCaptureKit — zero meeting bots, ~4x lighter than heavy native wrappers.
-          </p>
-          <pre class="code-block">{`# Enable local Ollama Metal GPU access:
-OLLAMA_ORIGINS="*" ollama serve &
+cd desktop && npm install && npm run dist:win`}</pre>
+          </div>
+          <div>
+            <h2 class="card-title" style="margin-bottom:6px;">macOS</h2>
+            <pre class="code-block">{`OLLAMA_ORIGINS="*" ollama serve &
 ollama pull qwen2.5:3b
 
-# Build Universal Apple Silicon + Intel (.dmg):
-cd desktop
-npm install && npm run dist:mac`}</pre>
+cd desktop && npm install && npm run dist:mac`}</pre>
+          </div>
         </div>
-      </div>
+      </details>
     </div>
   );
 }
