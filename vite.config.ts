@@ -1,13 +1,17 @@
 import { defineConfig } from 'vite';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 
+const isVercel = Boolean(
+  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.VERCEL,
+);
+
 export default defineConfig({
-  plugins: [...(process.env.VERCEL ? [] : [viteSingleFile()])],
+  plugins: isVercel ? [] : [viteSingleFile()],
   build: {
     target: 'es2022',
     minify: true,
-    cssCodeSplit: Boolean(process.env.VERCEL),
-    assetsInlineLimit: process.env.VERCEL ? 4096 : 100000000,
+    cssCodeSplit: isVercel,
+    assetsInlineLimit: isVercel ? 4096 : 100000000,
     outDir: 'dist',
     emptyOutDir: true,
   },
